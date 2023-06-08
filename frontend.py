@@ -19,11 +19,19 @@ def get_tasks():
     else:
         print('Failed to retrieve tasks')
 
+def delete_tasks():
+    response = requests.delete('http://localhost:5000/tasks')
+    if response.status_code == 200:
+        print("Cleared tasks list")
+    else:
+        print("Failed to clear tasks list")
+
 
 def main():
     print("Usage:")
-    print(" - add \"task\" - add a task to the database")
-    print(" - get tasks - get the list of tasks")
+    print(" - add \"task\" - create a new task")
+    print(" - get - print the list of tasks")
+    print(" - delete - clear all tasks")
     while True:
         data = input("Enter a command and optionally the arguments\n")
 
@@ -37,6 +45,8 @@ def main():
             add_task(task)
         elif command == "get":
             get_tasks()
+        elif command == "delete":
+            delete_tasks()
         elif data == "exit":
             print("Leaving the program.")
             break
