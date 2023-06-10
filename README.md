@@ -4,6 +4,12 @@ The backend side is a Flask-based python server with RESTful API to modify tasks
 
 The frontend side is a simple python command-line application that allows
 
+Prerequisites installation:
+```
+$ sudo apt-get install libssl-dev libldap2-dev libsasl2-dev
+$ pip install -r requirements.txt
+```
+
 Usage:
 
 To start the backend side:<br>
