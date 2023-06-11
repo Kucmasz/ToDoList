@@ -1,8 +1,9 @@
 Simple ToDoList application written in python.
 
-The backend side is a Flask-based python server with RESTful API to modify tasks list.
+The backend side is a Flask-based python server with RESTful API to modify tasks list and
+PostgreSQL database for users management
 
-The frontend side is a simple python command-line application that allows
+The frontend side is a simple python command-line application that allows testing server capabilities and API.
 
 Prerequisites installation:
 ```
@@ -28,3 +29,16 @@ python backend.py
 
 To start the frontend side and actually use the app:<br>
 `python frontend.py`
+
+To clear database:
+```commandline
+sudo gedit /etc/postgresql/14/main/pg_hba.conf
+```
+change peer to scram-sha-256 for the local connection
+
+```commandline
+psql -U todolist_admin -d todolist_database
+<enter password>
+SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'; #list tables
+DELETE FROM <table_name>;
+```
