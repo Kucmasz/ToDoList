@@ -1,7 +1,29 @@
 from flask import Flask, jsonify, request, make_response
 import secrets
+import psycopg2
+import signal
 
 app = Flask(__name__)
+
+conn = psycopg2.connect(
+    host="localhost",
+    port="5432", # default for PostgreSQL
+    database="todolist_database",
+    user="todolist_admin",
+    password="todolist_admin_password"
+)
+cursor = conn.cursor()
+
+
+def shutdown(signal, frame):
+    # Shutdown the application gracefully
+    print("Server shutting down...")
+    cursor.close()
+    conn.close()
+    raise SystemExit
+
+
+signal.signal(signal.SIGINT, shutdown)
 
 
 class User:
@@ -21,7 +43,7 @@ def find_user_by_username(username):
             return user
     return None
 
-# :*
+
 @app.route('/tasks', methods=['POST', 'GET', 'DELETE'])
 def handle_tasks():
     if active_user is not None:
@@ -93,4 +115,4 @@ def logout():
 
 
 if __name__ == '__main__':
-    app.run()
+    app.run(debug=True)
