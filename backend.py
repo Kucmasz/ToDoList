@@ -82,29 +82,6 @@ def handle_tasks():
         return jsonify({'message': 'User not logged in'}), 401
 
 
-users_table_exists_query = '''
-        SELECT EXISTS (
-            SELECT 1
-            FROM pg_tables
-            WHERE tablename = %s
-        )
-    '''
-
-
-def table_exists(table_name):
-    db_cursor.execute(users_table_exists_query, (table_name,))
-    exists = db_cursor.fetchone()[0]
-    return exists
-
-
-users_table_create_query = '''
-    CREATE TABLE users (
-        id SERIAL PRIMARY KEY,
-        username VARCHAR(50) NOT NULL,
-        password VARCHAR(100) NOT NULL,
-        created_at TIMESTAMPTZ DEFAULT NOW()
-    )
-'''
 
 
 if __name__ == '__main__':
@@ -113,13 +90,12 @@ if __name__ == '__main__':
     user_management.set_db(db_conn, db_cursor)
     try:
         # Check if the 'users' table exists
-        if table_exists('users'):
+        if user_management.table_exists():
             print("The 'users' table already exists in the database")
         else:
             print("The 'users' table does not exist in the database")
             print("Creating...")
-            db_cursor.execute(users_table_create_query)
-            db_conn.commit()
+            user_management.table_create()
             print("Table 'users' created successfully")
     except (Exception, Error) as error:
         print("Error while checking table existence:", error)
