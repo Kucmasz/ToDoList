@@ -3,8 +3,10 @@ import secrets
 import psycopg2
 import signal
 from psycopg2 import Error
+from user_management import user_management, users_bp
 
 app = Flask(__name__)
+app.register_blueprint(users_bp)
 
 db_conn = None
 db_cursor = None
@@ -41,25 +43,6 @@ def shutdown(signal, frame):
 
 signal.signal(signal.SIGINT, shutdown)
 
-active_user_id = None
-
-
-def find_user_in_users_table(username):
-    query = "SELECT * FROM users WHERE username = %s;"
-    db_cursor.execute(query, (username,))
-    return db_cursor.fetchone()
-
-
-def verify_user(username, password):
-    db_cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
-    user = db_cursor.fetchone()
-
-    if user is not None:
-        stored_password = user[2]  # Assuming the password is in the third column
-        if password == stored_password:
-            return user[0]
-
-    return None
 
 
 def find_row_id(user_id, tasks_list):
@@ -73,7 +56,7 @@ def find_row_id(user_id, tasks_list):
 @app.route('/tasks', methods=['POST', 'GET', 'DELETE'])
 def handle_tasks():
     user_id = request.json.get('user_id')
-    if active_user_id is not None and user_id == active_user_id:
+    if user_management.active_user.get_id() is not None and user_id == user_management.active_user.get_id():
         list_id = find_row_id(user_id, tasks)
         if request.method == 'POST':
             task = request.json.get('task')
@@ -91,76 +74,12 @@ def handle_tasks():
         elif request.method == 'DELETE':
             list_id = find_row_id(user_id, tasks)
             if list_id != -1:
-                tasks[list_id].clear()
+                del tasks[list_id]
                 return jsonify({'message': 'Tasks deleted'}), 200
             else:
                 return jsonify({'message': 'Tasks deleted'}), 200
     else:
         return jsonify({'message': 'User not logged in'}), 401
-
-
-@app.route('/users/register', methods=['POST', 'DELETE'])
-def handle_account():
-    global active_user_id
-    username = request.json.get('username')
-    password = request.json.get('password')
-    user_id = request.json.get('user_id')
-    user_in_db = find_user_in_users_table(username)
-    if request.method == 'POST':
-        if not user_in_db:
-            insert_query = "INSERT INTO users (username, password) VALUES (%s, %s) RETURNING id"
-            db_cursor.execute(insert_query, (username, password))
-            user_id = db_cursor.fetchone()[0]
-            db_conn.commit()
-            return jsonify({'message': 'User created', 'user_id': user_id}), 201
-        else:
-            return jsonify({'message': 'User already exists'}), 409
-    elif request.method == 'DELETE':
-        if user_in_db and user_id == user_in_db[0]:
-            delete_query = "DELETE FROM users WHERE id = %s"
-            db_cursor.execute(delete_query, (user_id,))
-            db_conn.commit()
-            active_user_id = None
-            return jsonify({'message': 'User successfully deleted'}), 204
-        else:
-            return jsonify({'message': 'User not found'}), 400
-    else:
-        return jsonify({'message': 'Method not allowed'}), 405
-
-
-# Endpoint for user login
-@app.route('/users/login', methods=['POST'])
-def login():
-    global active_user_id
-    username = request.json.get('username')
-    password = request.json.get('password')
-    user_id = verify_user(username, password)
-    if user_id:
-        session_id = secrets.token_hex(16)
-        active_user_id = user_id
-        return jsonify({'message': 'Logged in successfully', 'session_id': session_id, 'user_id': user_id}), 200
-    else:
-        return jsonify({'message': 'User not found'}), 401
-
-
-# Endpoint for user logout
-@app.route('/users/logout', methods=['POST'])
-def logout():
-    global active_user_id
-    username = request.json.get('username')
-    user_id = request.json.get('user_id')
-    session_id = request.json.get('session_id')
-
-    user_id_in_db = find_user_in_users_table(username)[0]
-
-    if user_id_in_db and user_id == user_id_in_db:
-        if session_id:
-            active_user_id = None
-            return jsonify({'message': 'Logged out successfully'}), 200
-        else:
-            return jsonify({'message': 'Invalid session ID'}), 401
-    else:
-        return jsonify({'message': 'Invalid user'}), 401
 
 
 users_table_exists_query = '''
@@ -191,6 +110,7 @@ users_table_create_query = '''
 if __name__ == '__main__':
     db_conn = create_connection()
     db_cursor = db_conn.cursor()
+    user_management.set_db(db_conn, db_cursor)
     try:
         # Check if the 'users' table exists
         if table_exists('users'):
